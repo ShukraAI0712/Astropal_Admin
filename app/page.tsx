@@ -16,6 +16,7 @@ import {
 import { RequireAuth } from '@/components/RequireAuth';
 import { apiFetch, ApiError } from '@/lib/api.client';
 import { supabase } from '@/lib/supabase.client';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 // ------------------------------------------------------------------ //
 //  Types                                                               //
@@ -38,10 +39,10 @@ interface Ticket {
 const PRIORITY_LABELS: Record<number, string> = { 1: 'P1', 2: 'P2', 3: 'P3', 4: 'P4' };
 
 const PRIORITY_COLORS: Record<number, string> = {
-  1: 'bg-red-500/15 text-red-400 font-semibold',
-  2: 'bg-amber-500/15 text-amber-400 font-medium',
-  3: 'bg-sky-500/15 text-sky-400',
-  4: 'bg-neutral-800 text-neutral-400',
+  1: 'bg-red-100 text-red-700 font-semibold dark:bg-red-500/15 dark:text-red-400',
+  2: 'bg-amber-100 text-amber-700 font-medium dark:bg-amber-500/15 dark:text-amber-400',
+  3: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400',
+  4: 'bg-raised text-muted',
 };
 
 interface ReportTypeStat {
@@ -105,10 +106,10 @@ const ROLE_LABELS: Record<AppRole, string> = {
 };
 
 const ROLE_COLORS: Record<AppRole, string> = {
-  super_admin: 'bg-red-500/15 text-red-400',
-  admin: 'bg-amber-500/15 text-amber-400',
-  staff: 'bg-sky-500/15 text-sky-400',
-  user: 'bg-neutral-800 text-neutral-400',
+  super_admin: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400',
+  admin: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
+  staff: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400',
+  user: 'bg-raised text-muted',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -119,10 +120,10 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  open: 'bg-amber-500/15 text-amber-400',
-  in_progress: 'bg-sky-500/15 text-sky-400',
-  resolved: 'bg-emerald-500/15 text-emerald-400',
-  closed: 'bg-neutral-800 text-neutral-400',
+  open: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
+  in_progress: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400',
+  resolved: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
+  closed: 'bg-raised text-muted',
 };
 
 const TICKET_TYPE_LABELS: Record<string, string> = {
@@ -135,12 +136,12 @@ const TICKET_TYPE_LABELS: Record<string, string> = {
 };
 
 const TICKET_TYPE_COLORS: Record<string, string> = {
-  feedback: 'bg-sky-500/10 text-sky-400',
-  billing: 'bg-amber-500/10 text-amber-400',
-  technical: 'bg-red-500/10 text-red-400',
-  feature_request: 'bg-emerald-500/10 text-emerald-400',
-  account: 'bg-neutral-800 text-neutral-400',
-  other: 'bg-neutral-800 text-neutral-500',
+  feedback: 'bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-400',
+  billing: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400',
+  technical: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400',
+  feature_request: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400',
+  account: 'bg-raised text-muted',
+  other: 'bg-raised text-faint',
 };
 
 const REPORT_LABELS: Record<string, string> = {
@@ -172,19 +173,19 @@ function fmt(ts: string) {
 
 function StatCard({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
   return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-5">
-      <p className="text-xs text-neutral-500 font-medium uppercase tracking-wide">{label}</p>
-      <p className="mt-1 text-3xl font-semibold text-neutral-100">{value}</p>
-      {sub && <p className="mt-0.5 text-xs text-neutral-500">{sub}</p>}
+    <div className="rounded-lg border border-line bg-surface p-5">
+      <p className="text-xs text-faint font-medium uppercase tracking-wide">{label}</p>
+      <p className="mt-1 text-3xl font-semibold text-ink">{value}</p>
+      {sub && <p className="mt-0.5 text-xs text-faint">{sub}</p>}
     </div>
   );
 }
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-900 overflow-hidden">
-      <div className="px-5 py-4 border-b border-neutral-800">
-        <p className="text-sm font-semibold text-neutral-100">{title}</p>
+    <div className="rounded-lg border border-line bg-surface overflow-hidden">
+      <div className="px-5 py-4 border-b border-line">
+        <p className="text-sm font-semibold text-ink">{title}</p>
       </div>
       {children}
     </div>
@@ -257,14 +258,14 @@ function TicketsTab({ callerRole }: { callerRole: AppRole }) {
             onClick={() => setFilterStatus(s)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
               filterStatus === s
-                ? 'bg-neutral-100 text-neutral-900'
-                : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'
+                ? 'bg-solid text-inverse'
+                : 'bg-raised text-muted hover:bg-line'
             }`}
           >
             {s === '' ? 'All status' : STATUS_LABELS[s]}
           </button>
         ))}
-        <span className="ml-auto text-xs text-neutral-500">{total} ticket{total !== 1 ? 's' : ''}</span>
+        <span className="ml-auto text-xs text-faint">{total} ticket{total !== 1 ? 's' : ''}</span>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         {(['', 'feedback', 'billing', 'technical', 'feature_request', 'account', 'other'] as const).map((t) => (
@@ -273,8 +274,8 @@ function TicketsTab({ callerRole }: { callerRole: AppRole }) {
             onClick={() => setFilterType(t)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
               filterType === t
-                ? 'bg-neutral-100 text-neutral-900'
-                : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'
+                ? 'bg-solid text-inverse'
+                : 'bg-raised text-muted hover:bg-line'
             }`}
           >
             {t === '' ? 'All types' : TICKET_TYPE_LABELS[t]}
@@ -284,52 +285,52 @@ function TicketsTab({ callerRole }: { callerRole: AppRole }) {
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-neutral-500" />
+          <Loader2 className="h-6 w-6 animate-spin text-faint" />
         </div>
       ) : tickets.length === 0 ? (
-        <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-10 text-center text-neutral-500">
+        <div className="rounded-lg border border-line bg-surface p-10 text-center text-faint">
           <Inbox className="h-8 w-8 mx-auto mb-2 opacity-40" />
           <p className="text-sm">No tickets found.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {tickets.map((t) => (
-            <div key={t.id} className="rounded-lg border border-neutral-800 bg-neutral-900 overflow-hidden">
+            <div key={t.id} className="rounded-lg border border-line bg-surface overflow-hidden">
               <button
                 className="w-full text-left p-5 flex items-start gap-3"
                 onClick={() => setExpanded(expanded === t.id ? null : t.id)}
               >
-                <TicketIcon className="h-4 w-4 mt-0.5 shrink-0 text-neutral-500" />
+                <TicketIcon className="h-4 w-4 mt-0.5 shrink-0 text-faint" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Pill className={PRIORITY_COLORS[t.priority] ?? 'bg-neutral-800 text-neutral-400'}>
+                    <Pill className={PRIORITY_COLORS[t.priority] ?? 'bg-raised text-muted'}>
                       {PRIORITY_LABELS[t.priority] ?? `P${t.priority}`}
                     </Pill>
-                    <span className="font-medium text-neutral-100 text-sm truncate">{t.subject}</span>
-                    <Pill className={TICKET_TYPE_COLORS[t.ticket_type] ?? 'bg-neutral-800 text-neutral-400'}>
+                    <span className="font-medium text-ink text-sm truncate">{t.subject}</span>
+                    <Pill className={TICKET_TYPE_COLORS[t.ticket_type] ?? 'bg-raised text-muted'}>
                       {TICKET_TYPE_LABELS[t.ticket_type] ?? t.ticket_type}
                     </Pill>
                     <Pill className={STATUS_COLORS[t.status]}>{STATUS_LABELS[t.status]}</Pill>
                   </div>
-                  <p className="text-xs text-neutral-500 mt-0.5">
+                  <p className="text-xs text-faint mt-0.5">
                     {t.email} &middot; {fmt(t.created_at)}
                   </p>
                 </div>
                 <ChevronDown
-                  className={`h-4 w-4 shrink-0 text-neutral-500 transition-transform ${
+                  className={`h-4 w-4 shrink-0 text-faint transition-transform ${
                     expanded === t.id ? 'rotate-180' : ''
                   }`}
                 />
               </button>
 
               {expanded === t.id && (
-                <div className="border-t border-neutral-800 px-5 pb-5 pt-4 space-y-4">
-                  <p className="text-sm text-neutral-300 whitespace-pre-wrap">{t.message}</p>
+                <div className="border-t border-line px-5 pb-5 pt-4 space-y-4">
+                  <p className="text-sm text-muted whitespace-pre-wrap">{t.message}</p>
 
                   {t.admin_notes && (
-                    <div className="rounded-md bg-neutral-950 border border-neutral-800 p-3">
-                      <p className="text-xs font-medium text-neutral-500 mb-1">Admin notes</p>
-                      <p className="text-sm text-neutral-300 whitespace-pre-wrap">{t.admin_notes}</p>
+                    <div className="rounded-md bg-raised border border-line p-3">
+                      <p className="text-xs font-medium text-faint mb-1">Admin notes</p>
+                      <p className="text-sm text-muted whitespace-pre-wrap">{t.admin_notes}</p>
                     </div>
                   )}
 
@@ -340,7 +341,7 @@ function TicketsTab({ callerRole }: { callerRole: AppRole }) {
                         placeholder="Add admin notes..."
                         value={notes[t.id] ?? t.admin_notes ?? ''}
                         onChange={(e) => setNotes({ ...notes, [t.id]: e.target.value })}
-                        className="w-full rounded-md border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-600 focus:outline-none focus:ring-1 focus:ring-neutral-600 resize-none transition"
+                        className="w-full rounded-md border border-line bg-raised px-3 py-2 text-sm text-ink placeholder:text-faint focus:border-faint focus:outline-none focus:ring-1 focus:ring-faint resize-none transition"
                       />
                       <div className="flex items-center gap-2 flex-wrap">
                         {(['open', 'in_progress', 'resolved', 'closed'] as const).map((s) => (
@@ -366,7 +367,7 @@ function TicketsTab({ callerRole }: { callerRole: AppRole }) {
                           <button
                             disabled={updating === t.id}
                             onClick={() => updateTicket(t.id, { admin_notes: notes[t.id] })}
-                            className="px-3 py-1.5 rounded-full text-xs font-medium bg-neutral-100/10 text-neutral-200 hover:bg-neutral-100/20 transition-colors disabled:opacity-40"
+                            className="px-3 py-1.5 rounded-full text-xs font-medium bg-ink/10 text-ink hover:bg-ink/20 transition-colors disabled:opacity-40"
                           >
                             Save notes
                           </button>
@@ -374,7 +375,7 @@ function TicketsTab({ callerRole }: { callerRole: AppRole }) {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-xs text-neutral-500 italic">View only - contact an admin to update this ticket.</p>
+                    <p className="text-xs text-faint italic">View only - contact an admin to update this ticket.</p>
                   )}
                 </div>
               )}
@@ -406,21 +407,21 @@ function ReportsTab({ stats }: { stats: AdminStats }) {
 
       <Panel title="Recent failures">
         {failures.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-neutral-500">No failed report jobs. All clear.</p>
+          <p className="px-5 py-6 text-sm text-faint">No failed report jobs. All clear.</p>
         ) : (
-          <div className="divide-y divide-neutral-800">
+          <div className="divide-y divide-line">
             {failures.map((f, i) => (
               <div key={i} className="px-5 py-3.5">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Pill className="bg-red-500/10 text-red-400">
+                  <Pill className="bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400">
                     {REPORT_LABELS[f.report_type] ?? f.report_type}
                   </Pill>
-                  <span className="text-xs text-neutral-500">
+                  <span className="text-xs text-faint">
                     {fmt(f.updated_at)} &middot; attempt {f.attempt_count}
                   </span>
                 </div>
                 {f.last_error && (
-                  <p className="mt-1.5 text-xs text-neutral-500 break-words line-clamp-2">
+                  <p className="mt-1.5 text-xs text-faint break-words line-clamp-2">
                     {f.last_error}
                   </p>
                 )}
@@ -431,22 +432,22 @@ function ReportsTab({ stats }: { stats: AdminStats }) {
       </Panel>
 
       <Panel title="Reports by type">
-        <div className="divide-y divide-neutral-800">
+        <div className="divide-y divide-line">
           {Object.entries(by_type).map(([key, val]) => (
             <div key={key} className="flex items-center justify-between px-5 py-3.5">
-              <p className="text-sm font-medium text-neutral-100">{REPORT_LABELS[key] ?? key}</p>
+              <p className="text-sm font-medium text-ink">{REPORT_LABELS[key] ?? key}</p>
               <div className="flex items-center gap-6 text-right">
                 <div>
-                  <p className="text-sm font-semibold text-neutral-100">{val.today ?? 0}</p>
-                  <p className="text-xs text-neutral-500">today</p>
+                  <p className="text-sm font-semibold text-ink">{val.today ?? 0}</p>
+                  <p className="text-xs text-faint">today</p>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-neutral-100">{val.last_30_days}</p>
-                  <p className="text-xs text-neutral-500">30d</p>
+                  <p className="text-sm font-semibold text-ink">{val.last_30_days}</p>
+                  <p className="text-xs text-faint">30d</p>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-neutral-100">{val.total}</p>
-                  <p className="text-xs text-neutral-500">total</p>
+                  <p className="text-sm font-semibold text-ink">{val.total}</p>
+                  <p className="text-xs text-faint">total</p>
                 </div>
               </div>
             </div>
@@ -476,15 +477,15 @@ function UsersTab({ stats }: { stats: AdminStats }) {
 
       <Panel title="New users today">
         {newUsers.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-neutral-500">No new users yet today.</p>
+          <p className="px-5 py-6 text-sm text-faint">No new users yet today.</p>
         ) : (
-          <div className="divide-y divide-neutral-800">
+          <div className="divide-y divide-line">
             {newUsers.map((u) => (
               <div key={u.user_id} className="flex items-center justify-between gap-3 px-5 py-3">
-                <p className="text-sm text-neutral-100 truncate">
-                  {u.email ?? <span className="text-neutral-500">{u.user_id}</span>}
+                <p className="text-sm text-ink truncate">
+                  {u.email ?? <span className="text-faint">{u.user_id}</span>}
                 </p>
-                {u.created_at && <p className="text-xs text-neutral-500 shrink-0">{fmt(u.created_at)}</p>}
+                {u.created_at && <p className="text-xs text-faint shrink-0">{fmt(u.created_at)}</p>}
               </div>
             ))}
           </div>
@@ -493,20 +494,20 @@ function UsersTab({ stats }: { stats: AdminStats }) {
 
       <Panel title="Most friends">
         {topFriends.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-neutral-500">No accepted friendships yet.</p>
+          <p className="px-5 py-6 text-sm text-faint">No accepted friendships yet.</p>
         ) : (
-          <div className="divide-y divide-neutral-800">
+          <div className="divide-y divide-line">
             {topFriends.map((f, i) => (
               <div key={f.user_id} className="flex items-center justify-between gap-3 px-5 py-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-xs font-semibold text-neutral-500 w-4 shrink-0">{i + 1}</span>
-                  <p className="text-sm text-neutral-100 truncate">
-                    {f.email ?? <span className="text-neutral-500">{f.user_id}</span>}
+                  <span className="text-xs font-semibold text-faint w-4 shrink-0">{i + 1}</span>
+                  <p className="text-sm text-ink truncate">
+                    {f.email ?? <span className="text-faint">{f.user_id}</span>}
                   </p>
                 </div>
-                <p className="text-sm font-semibold text-neutral-100 shrink-0">
+                <p className="text-sm font-semibold text-ink shrink-0">
                   {f.friend_count}
-                  <span className="ml-1 text-xs font-normal text-neutral-500">
+                  <span className="ml-1 text-xs font-normal text-faint">
                     friend{f.friend_count !== 1 ? 's' : ''}
                   </span>
                 </p>
@@ -517,20 +518,20 @@ function UsersTab({ stats }: { stats: AdminStats }) {
       </Panel>
 
       <Panel title="Users by plan">
-        <div className="divide-y divide-neutral-800">
+        <div className="divide-y divide-line">
           {[...planOrder, ...Object.keys(by_plan).filter((p) => !planOrder.includes(p))].map((plan) => {
             const count = by_plan[plan] ?? 0;
             const pct = total ? Math.round((count / total) * 100) : 0;
             return (
               <div key={plan} className="px-5 py-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium capitalize text-neutral-100">{plan}</span>
-                  <span className="text-sm font-semibold text-neutral-100">
-                    {count} <span className="text-neutral-500 font-normal text-xs">({pct}%)</span>
+                  <span className="text-sm font-medium capitalize text-ink">{plan}</span>
+                  <span className="text-sm font-semibold text-ink">
+                    {count} <span className="text-faint font-normal text-xs">({pct}%)</span>
                   </span>
                 </div>
-                <div className="h-1.5 w-full rounded-full bg-neutral-800 overflow-hidden">
-                  <div className="h-full rounded-full bg-neutral-100/60" style={{ width: `${pct}%` }} />
+                <div className="h-1.5 w-full rounded-full bg-raised overflow-hidden">
+                  <div className="h-full rounded-full bg-ink/60" style={{ width: `${pct}%` }} />
                 </div>
               </div>
             );
@@ -587,7 +588,7 @@ function AdminDashboard() {
   if (refreshing && !stats) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-neutral-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-faint" />
       </div>
     );
   }
@@ -596,18 +597,18 @@ function AdminDashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="max-w-md text-center space-y-4">
-          <XCircle className="h-12 w-12 text-red-500/60 mx-auto" />
-          <p className="text-neutral-400 text-sm">{error}</p>
+          <XCircle className="h-12 w-12 text-red-500 mx-auto" />
+          <p className="text-muted text-sm">{error}</p>
           <div className="flex items-center justify-center gap-3">
             <button
               onClick={loadStats}
-              className="inline-flex items-center gap-2 rounded-md bg-neutral-100 text-neutral-900 text-sm font-medium px-4 py-2 transition-colors hover:bg-white"
+              className="inline-flex items-center gap-2 rounded-md bg-solid text-inverse text-sm font-medium px-4 py-2 transition-colors hover:opacity-90"
             >
               <RefreshCw className="h-4 w-4" /> Retry
             </button>
             <button
               onClick={handleSignOut}
-              className="inline-flex items-center gap-2 rounded-md border border-neutral-800 text-neutral-400 text-sm font-medium px-4 py-2 transition-colors hover:bg-neutral-900"
+              className="inline-flex items-center gap-2 rounded-md border border-line text-muted text-sm font-medium px-4 py-2 transition-colors hover:bg-raised"
             >
               Sign out
             </button>
@@ -631,31 +632,32 @@ function AdminDashboard() {
         <header className="flex items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Internal</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-faint">Internal</p>
               <Pill className={ROLE_COLORS[stats.caller_role]}>{ROLE_LABELS[stats.caller_role]}</Pill>
             </div>
-            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-neutral-100">
+            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-ink">
               AstroPal Admin
             </h1>
           </div>
           <div className="flex items-center gap-3">
             {updatedAt && (
-              <span className="text-xs text-neutral-500">
+              <span className="text-xs text-faint">
                 Updated {updatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
               </span>
             )}
+            <ThemeToggle />
             <button
               onClick={loadStats}
               disabled={refreshing}
               title="Refresh"
-              className="h-9 w-9 flex items-center justify-center rounded-md border border-neutral-800 hover:bg-neutral-900 transition-colors text-neutral-400 disabled:opacity-50"
+              className="h-9 w-9 flex items-center justify-center rounded-md border border-line hover:bg-raised transition-colors text-muted disabled:opacity-50"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
             <button
               onClick={handleSignOut}
               title="Sign out"
-              className="h-9 w-9 flex items-center justify-center rounded-md border border-neutral-800 hover:bg-neutral-900 transition-colors text-neutral-400"
+              className="h-9 w-9 flex items-center justify-center rounded-md border border-line hover:bg-raised transition-colors text-muted"
             >
               <LogOut className="h-4 w-4" />
             </button>
@@ -670,21 +672,21 @@ function AdminDashboard() {
         </div>
 
         <div>
-          <div className="flex gap-1 border-b border-neutral-800 mb-6">
+          <div className="flex gap-1 border-b border-line mb-6">
             {TABS.map((t) => (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
                 className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                   tab === t.id
-                    ? 'border-neutral-100 text-neutral-100'
-                    : 'border-transparent text-neutral-500 hover:text-neutral-300'
+                    ? 'border-ink text-ink'
+                    : 'border-transparent text-faint hover:text-muted'
                 }`}
               >
                 {t.icon}
                 {t.label}
                 {t.id === 'tickets' && stats.tickets.open > 0 && (
-                  <span className="ml-1 h-5 min-w-[1.25rem] rounded-full bg-amber-500 text-neutral-950 text-[10px] font-bold flex items-center justify-center px-1">
+                  <span className="ml-1 h-5 min-w-[1.25rem] rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
                     {stats.tickets.open}
                   </span>
                 )}

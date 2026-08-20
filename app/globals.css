@@ -1,18 +1,50 @@
 @import "tailwindcss";
 
+/* Dark mode is driven by a class on <html>, set before paint by the inline
+   script in layout.tsx, so Tailwind's `dark:` variant must follow the class
+   rather than the OS media query. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  /* Light (default) */
+  --canvas: #fafaf9;        /* page background */
+  --surface: #ffffff;       /* cards, panels */
+  --raised: #f5f5f4;        /* hover, inset blocks */
+  --line: #e7e5e4;          /* hairlines, borders */
+  --ink: #1c1917;           /* primary text */
+  --muted: #78716c;         /* secondary text */
+  --faint: #a8a29e;         /* tertiary text */
+  --inverse: #fafaf9;       /* text on solid dark buttons */
+  --solid: #1c1917;         /* solid button background */
+}
+
+.dark {
+  --canvas: #0a0a0a;
+  --surface: #171717;
+  --raised: #262626;
+  --line: #262626;
+  --ink: #f5f5f5;
+  --muted: #a3a3a3;
+  --faint: #737373;
+  --inverse: #171717;
+  --solid: #f5f5f5;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-inverse: var(--inverse);
+  --color-solid: var(--solid);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--canvas);
+  color: var(--ink);
 }
