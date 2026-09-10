@@ -4,6 +4,17 @@ Internal admin dashboard for AstroPal. Deployed separately from the main app at 
 
 Talks to the same Supabase project and the same FastAPI backend (`api.astropal.app`) as the main AskDisha/AstroPal frontend. Access is gated server-side by `caller_role` (`staff` / `admin` / `super_admin`) - see `backend/app/api/routes/support.py` and `backend/app/services/quota_service.py` in the main repo.
 
+## Sections
+
+| Route | What it is | Access |
+| --- | --- | --- |
+| `/` | Support tickets, report stats, user stats | `staff` and above |
+| `/coupons` | Discount coupons: create, edit, disable, archive, usage analytics | `admin` to read, `super_admin` to change |
+
+Coupons have their own document: **[COUPONS.md](./COUPONS.md)** covers the
+rules, the data model, the concurrency guarantees and the edge cases. Read
+it before changing anything that touches money.
+
 ## Getting started
 
 ```bash

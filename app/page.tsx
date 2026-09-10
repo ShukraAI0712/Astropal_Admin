@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   ChevronDown,
   FileText,
@@ -9,11 +10,13 @@ import {
   LogOut,
   Loader2,
   RefreshCw,
+  Tag,
   Ticket as TicketIcon,
   Users,
   XCircle,
 } from 'lucide-react';
 import { RequireAuth } from '@/components/RequireAuth';
+import { Panel, Pill, StatCard, fmt } from '@/components/ui';
 import { apiFetch, ApiError } from '@/lib/api.client';
 import { supabase } from '@/lib/supabase.client';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -156,49 +159,6 @@ const REPORT_LABELS: Record<string, string> = {
   baby_name_vedic: 'Baby Name (Vedic)',
   baby_name_sikh: 'Baby Name (Sikh)',
 };
-
-function fmt(ts: string) {
-  return new Date(ts).toLocaleString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-// ------------------------------------------------------------------ //
-//  Shared bits                                                        //
-// ------------------------------------------------------------------ //
-
-function StatCard({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
-  return (
-    <div className="rounded-lg border border-line bg-surface p-5">
-      <p className="text-xs text-faint font-medium uppercase tracking-wide">{label}</p>
-      <p className="mt-1 text-3xl font-semibold text-ink">{value}</p>
-      {sub && <p className="mt-0.5 text-xs text-faint">{sub}</p>}
-    </div>
-  );
-}
-
-function Panel({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="rounded-lg border border-line bg-surface overflow-hidden">
-      <div className="px-5 py-4 border-b border-line">
-        <p className="text-sm font-semibold text-ink">{title}</p>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function Pill({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs ${className}`}>
-      {children}
-    </span>
-  );
-}
 
 // ------------------------------------------------------------------ //
 //  Tickets tab                                                        //
@@ -645,6 +605,17 @@ function AdminDashboard() {
                 Updated {updatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
               </span>
             )}
+            {/* Coupons get their own screen rather than a fourth tab: the
+                list, the create form and the usage detail are three views
+                of their own, and squeezing them beside the ticket queue
+                would make both harder to use. */}
+            <Link
+              href="/coupons"
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-line px-3 text-sm font-medium text-muted transition-colors hover:bg-raised"
+            >
+              <Tag className="h-4 w-4" />
+              Coupons
+            </Link>
             <ThemeToggle />
             <button
               onClick={loadStats}
