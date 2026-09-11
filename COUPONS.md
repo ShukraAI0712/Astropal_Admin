@@ -289,6 +289,33 @@ This is a partial unique index on
 `(user_id, product, redemption_month) WHERE status <> 'released'`, so it
 is a database guarantee rather than a read-then-write check that races.
 
+### The rule has two doors, and both are checked
+
+A discount reaches a customer through two different mechanisms, and they
+write to two different tables:
+
+- A **fresh coupon code** is redeemed - a `coupon_redemptions` row.
+- An **existing entitlement auto-applies** to a renewal, no code typed -
+  a `coupon_discount_applications` row.
+
+`has_coupon_for_product_this_month` checks BOTH tables before letting
+either one proceed. Checking only `coupon_redemptions` was a real bug
+caught in testing: a customer whose Pro renewal was auto-discounted by
+their running entitlement could, later the same month, redeem a
+completely different coupon on an Ultra upgrade - two discounted
+subscription charges in one calendar month, which is exactly what this
+rule exists to forbid.
+
+The fix runs both directions. Before a fresh redemption is reserved, the
+check looks for an application this month too. Before an entitlement
+auto-applies to a renewal, it looks for a fresh redemption (reserved or
+committed) this month as well - an OLDER entitlement stays live until the
+NEW coupon's payment actually settles (that is when it gets superseded),
+so a renewal racing in during that window could otherwise slip past
+unnoticed. An automatic renewal never errors for this: the customer typed
+nothing, so a blocked cycle just charges full price rather than failing
+loudly. See `tests/test_coupons.py::TestEntitlementRenewalCountsToo`.
+
 ---
 
 ## 9. Concurrency: nobody oversells a limited coupon
