@@ -1,25 +1,63 @@
 # AstroPal Admin
 
-Internal admin dashboard for AstroPal. Deployed separately from the main app at `admin.astropal.app`.
+Internal admin dashboard for AstroPal. Deployed separately from the main app at
+`admin.astropal.app`.
 
-Talks to the same Supabase project and the same FastAPI backend (`api.astropal.app`) as the main AskDisha/AstroPal frontend. Access is gated server-side by `caller_role` (`staff` / `admin` / `super_admin`) - see `backend/app/api/routes/support.py` and `backend/app/services/quota_service.py` in the main repo.
+Reads the same Supabase project as the AskDisha/AstroPal frontend, and the same
+FastAPI backend (`api.astropal.app`) for support tickets and coupons. Access is
+gated by `app_role` (`staff` / `admin` / `super_admin`).
 
 ## Sections
 
-| Route | What it is | Access |
-| --- | --- | --- |
-| `/` | Support tickets, report stats, user stats | `staff` and above |
-| `/coupons` | Discount coupons: create, edit, disable, archive, usage analytics | `admin` to read, `super_admin` to change |
+The app is a sidebar shell: a fixed rail on desktop, a hamburger drawer on a
+phone. Every section is its own route, so it can be linked and bookmarked.
 
-Coupons have their own document: **[COUPONS.md](./COUPONS.md)** covers the
-rules, the data model, the concurrency guarantees and the edge cases. Read
-it before changing anything that touches money.
+| Route | What it answers | Access |
+| --- | --- | --- |
+| `/` | Overview - the headline numbers, the activity trend, and what needs attention right now | `staff` and above |
+| `/engagement` | How much is being asked, by whom, and what readers talk about | `staff` and above |
+| `/users` | Signups, retention cohorts, who came back, and the email lists of accounts that never started | `staff` and above |
+| `/revenue` | The whole checkout funnel: paid, failed, abandoned, by item, by customer | `staff` and above |
+| `/reports` | Which reports people want, queue health, and every failure | `staff` and above |
+| `/coupons` | Discount coupons: create, edit, disable, archive, usage analytics | `admin` to read, `super_admin` to change |
+| `/support` | The support ticket queue | `staff` reads, `admin` edits |
+
+Two documents explain the parts that carry rules rather than code:
+
+- **[ANALYTICS.md](./ANALYTICS.md)** - what every number means, what the
+  dashboard deliberately cannot tell you, and why the whole thing costs one
+  database query a minute. Read it before adding a metric.
+- **[COUPONS.md](./COUPONS.md)** - the coupon data model, its concurrency
+  guarantees and its edge cases. Read it before changing anything that touches
+  money.
+
+## How the data gets here
+
+Every number on every screen comes from **one** Postgres function,
+`public.admin_analytics()`, defined in `sql/001_admin_analytics.sql`. It returns
+the entire dashboard as a single jsonb document.
+
+```
+browser  ->  GET /api/analytics  ->  admin_analytics()  ->  one jsonb document
+```
+
+The route handler caches that document for 60 seconds, and the browser holds it
+above the router outlet, so moving between screens costs no requests at all.
+This is deliberate: a read-only dashboard should not be the most expensive
+thing pointed at the database.
+
+Applying the SQL is a one-off and it is idempotent:
+
+```bash
+# Against the Supabase project, e.g. through the SQL editor or the CLI
+psql "$DATABASE_URL" -f sql/001_admin_analytics.sql
+```
 
 ## Getting started
 
 ```bash
 cp .env.local.example .env.local
-# fill in NEXT_PUBLIC_SUPABASE_ANON_KEY
+# fill in NEXT_PUBLIC_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY
 npm install
 npm run dev
 ```
@@ -31,9 +69,21 @@ npm run dev
 | `NEXT_PUBLIC_SUPABASE_URL` | Same Supabase project as the main app |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public anon key, safe to ship client-side |
 | `NEXT_PUBLIC_API_URL` | FastAPI backend base URL (`https://api.astropal.app` in production) |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Server only.** Bypasses row level security. No `NEXT_PUBLIC_` prefix, ever - that would put it in the browser bundle. Used by `app/api/analytics` alone, behind a JWT and role check. |
 
-Set these in the Vercel project settings for Production/Preview/Development, not just locally.
+Set all four in the Vercel project settings for Production, Preview and
+Development, not just locally.
 
 ## Deployment
 
-Deploys to Vercel as its own project, domain `admin.astropal.app`. The backend's `CORS_EXTRA_ORIGINS` (DigitalOcean App Platform env vars) must include this app's origin.
+Deploys to Vercel as its own project, domain `admin.astropal.app`. The backend's
+`CORS_EXTRA_ORIGINS` (DigitalOcean App Platform env vars) must include this
+app's origin.
+
+## Checks
+
+```bash
+npm run lint     # eslint
+npx tsc --noEmit # types
+npm run build    # the build Vercel runs
+```

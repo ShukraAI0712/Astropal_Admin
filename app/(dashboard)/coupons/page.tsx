@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
 import {
   ArrowLeft,
   Loader2,
@@ -12,11 +11,9 @@ import {
   XCircle,
 } from 'lucide-react';
 
-import { RequireAuth } from '@/components/RequireAuth';
 import { CouponDetail } from '@/components/coupons/CouponDetail';
 import { CouponForm } from '@/components/coupons/CouponForm';
 import { Panel, Pill, fmtDate } from '@/components/ui';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { ApiError } from '@/lib/api.client';
 import {
   DURATION_LABELS,
@@ -179,40 +176,28 @@ function CouponsScreen() {
   }
 
   return (
-    <div className="min-h-screen py-10 md:py-14">
-      <div className="container mx-auto max-w-5xl space-y-6 px-4">
+    <div>
+      <div className="space-y-6">
         <header className="flex items-start justify-between gap-4">
           <div>
-            <Link
-              href="/"
-              className="mb-2 inline-flex items-center gap-1.5 text-xs text-faint transition-colors hover:text-muted"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Dashboard
-            </Link>
-            <h1 className="text-3xl font-semibold tracking-tight text-ink md:text-4xl">
-              Coupons
-            </h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-ink">Coupons</h1>
             <p className="mt-1 max-w-2xl text-sm text-muted">
               A coupon controls when a code can be redeemed and for what. What a
               customer gets after redeeming is tracked separately, so retiring a
               campaign never cancels a discount somebody was already given.
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <ThemeToggle />
-            <button
-              onClick={() => {
-                setLoading(true);
-                load();
-              }}
-              disabled={loading}
-              title="Refresh"
-              className="flex h-9 w-9 items-center justify-center rounded-md border border-line text-muted transition-colors hover:bg-raised disabled:opacity-50"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              setLoading(true);
+              load();
+            }}
+            disabled={loading}
+            title="Refresh coupons"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-line text-muted transition-colors hover:bg-raised disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </header>
 
         {error && (
@@ -445,9 +430,5 @@ function Action({
 }
 
 export default function Page() {
-  return (
-    <RequireAuth>
-      <CouponsScreen />
-    </RequireAuth>
-  );
+  return <CouponsScreen />;
 }
