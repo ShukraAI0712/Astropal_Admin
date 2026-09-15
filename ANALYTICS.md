@@ -39,22 +39,64 @@ Six indexes were added for it (`sql/001_admin_analytics.sql`). `messages` had
 none on `created_at`, because nothing in the product asks for messages by time -
 the app reads them by session. Every trend line here does.
 
-### Why a service-role key
+### Who is allowed to read it
 
-The dashboard's questions are about other people's rows by definition -
-"how many accounts signed up and then did nothing" cannot be expressed under
-row level security, and `auth.users` is not reachable from a browser client at
-all. So the gate sits in front of the key rather than in the database:
+The dashboard's questions are about other people's rows by definition - "how
+many accounts signed up and then did nothing" cannot be expressed under row
+level security, and `auth.users` is not reachable from a browser client at all.
+So the privilege is lent for exactly one call, by a `SECURITY DEFINER`
+function, and only after the caller has been shown to be staff or above.
 
-1. `admin_analytics()` is `SECURITY DEFINER` with `EXECUTE` granted to
-   `service_role` only. `anon` and `authenticated` cannot call it.
-2. The route handler verifies the caller's Supabase JWT, reads their
-   `app_role`, and refuses anything below `staff`.
-3. `SUPABASE_SERVICE_ROLE_KEY` has no `NEXT_PUBLIC_` prefix, so it never
-   reaches the browser bundle.
+```
+browser JWT -> admin_dashboard()  [role check]  -> admin_analytics()
+```
 
-The function only ever reads. There is no write path in it, by design: the
-admin app is an instrument, and the money columns stay service-role write only.
+- `admin_analytics()` does the work. `EXECUTE` is granted to `service_role`
+  alone, so nothing holding a customer session can call it directly.
+- `admin_dashboard()` is the gate, and the only analytics function
+  `authenticated` may execute. It reads `app_role` for `auth.uid()` and raises
+  `insufficient_privilege` for anything below `staff`. Because it is
+  `SECURITY DEFINER` it runs as the owner, which is how it can call
+  `admin_analytics()` on behalf of a caller who could not.
+- Both functions are read-only. There is no write path in either, by design:
+  the admin app is an instrument, and the money columns stay service-role
+  write only.
+
+Verified against the live project: `anon` is refused at the grant
+(`permission denied for function`), a signed-in customer and an unknown user id
+are refused by the role check, and only `staff` / `admin` / `super_admin` get a
+document back.
+
+### The two deployment postures
+
+`SUPABASE_SERVICE_ROLE_KEY` is **optional**, and setting it strictly improves
+security with no code change.
+
+| | Without the key (what runs today) | With the key |
+| --- | --- | --- |
+| Who checks the role | `admin_dashboard()`, in the database | The route handler, before it queries |
+| Round trips per cache miss | 1 | 3 (verify JWT, read role, query) |
+| Reachable from a browser | Yes, by a staff session | No, once revoked from `authenticated` |
+| Secret to deploy | None | One |
+
+To take the stronger posture:
+
+1. Set `SUPABASE_SERVICE_ROLE_KEY` in the admin app's Vercel project
+   (Production, Preview, Development). No `NEXT_PUBLIC_` prefix - that would
+   ship it in the browser bundle.
+2. Run `revoke execute on function public.admin_dashboard(text) from authenticated;`
+
+The route prefers the key whenever it is present, so step 1 alone already
+switches the path; step 2 is what closes the browser route.
+
+**The exposure the current posture accepts**, written down so nobody
+rediscovers it: a staff member's ordinary session on `astropal.app` can call
+this RPC directly, which is the class of attack `require_admin_origin` closes
+on the FastAPI admin routes (AskDisha `CLAUDE.md`: "Any new admin route needs
+BOTH"). PostgREST has no equivalent origin control, so the role check is the
+only gate. It is read-only and requires the victim to already be staff, but
+script running in such a session could read the emails and revenue in this
+document.
 
 ---
 

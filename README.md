@@ -46,12 +46,17 @@ above the router outlet, so moving between screens costs no requests at all.
 This is deliberate: a read-only dashboard should not be the most expensive
 thing pointed at the database.
 
-Applying the SQL is a one-off and it is idempotent:
+Access is gated by `public.admin_dashboard()`, which checks the caller's
+`app_role` before lending them the privilege to run the analytics. Applying the
+SQL is a one-off and both files are idempotent:
 
 ```bash
 # Against the Supabase project, e.g. through the SQL editor or the CLI
 psql "$DATABASE_URL" -f sql/001_admin_analytics.sql
+psql "$DATABASE_URL" -f sql/002_admin_dashboard_gate.sql
 ```
+
+Both are already applied to the live project.
 
 ## Getting started
 
@@ -69,10 +74,11 @@ npm run dev
 | `NEXT_PUBLIC_SUPABASE_URL` | Same Supabase project as the main app |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public anon key, safe to ship client-side |
 | `NEXT_PUBLIC_API_URL` | FastAPI backend base URL (`https://api.astropal.app` in production) |
-| `SUPABASE_SERVICE_ROLE_KEY` | **Server only.** Bypasses row level security. No `NEXT_PUBLIC_` prefix, ever - that would put it in the browser bundle. Used by `app/api/analytics` alone, behind a JWT and role check. |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Optional, and server only.** The dashboard works without it: the database gates access in `admin_dashboard()`. Setting it moves the check into the route handler and lets you make the analytics unreachable from any browser. No `NEXT_PUBLIC_` prefix, ever - that would put it in the browser bundle. See [ANALYTICS.md](./ANALYTICS.md#the-two-deployment-postures). |
 
-Set all four in the Vercel project settings for Production, Preview and
-Development, not just locally.
+Set the first three in the Vercel project settings for Production, Preview and
+Development, not just locally. The fourth is a hardening step you can take at
+any time.
 
 ## Deployment
 
