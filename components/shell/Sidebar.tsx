@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   BarChart3, LifeBuoy, LogOut, Menu, MessageSquare, RefreshCw,
-  Tag, TrendingUp, Users, Wallet, X,
+  Route, Tag, TrendingUp, Users, Wallet, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabase.client';
@@ -32,6 +32,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { href: '/', label: 'Overview', icon: BarChart3, end: true },
+  { href: '/journey', label: 'User journey', icon: Route },
   { href: '/engagement', label: 'Engagement', icon: MessageSquare },
   { href: '/users', label: 'Users & retention', icon: Users },
   { href: '/revenue', label: 'Revenue', icon: Wallet },

@@ -100,7 +100,8 @@ begin
   -- point safe to call as many times as you like.
   drop table if exists
     pg_temp._q, pg_temp._act, pg_temp._mem, pg_temp._logins,
-    pg_temp._accounts, pg_temp._ghosts, pg_temp._never_returned;
+    pg_temp._accounts, pg_temp._seen, pg_temp._journey,
+    pg_temp._ghosts, pg_temp._never_returned;
 
   -- The caller's role travels with the document, so the app does not need a
   -- second query to decide whether to show the edit controls.

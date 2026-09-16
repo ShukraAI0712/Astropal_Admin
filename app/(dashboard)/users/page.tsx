@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Copy, Check } from 'lucide-react';
+import { useState } from 'react';
 import { useAnalytics } from '@/lib/analytics-context';
-import { RANGE_LABELS, delta, num, sliceSeries, type Range } from '@/lib/analytics';
 import {
-  Caveat, Empty, Panel, Pill, PLAN_COLORS, StatCard, Table, Td, fmt,
+  RANGE_LABELS, delta, name as personName, num, sliceSeries, type Range,
+} from '@/lib/analytics';
+import {
+  Caveat, CopyEmails, Empty, Panel, Pill, PLAN_COLORS, StatCard, Table, Td, fmt,
 } from '@/components/ui';
 import {
   BarList, CohortGrid, RangeTabs, SERIES, StackedBar, TimeSeries,
@@ -18,27 +19,6 @@ import {
  * Ghost accounts and accounts that came once are not statistics here; they are
  * a campaign you can copy to the clipboard.
  */
-
-function CopyEmails({ emails, label }: { emails: string[]; label: string }) {
-  const [copied, setCopied] = useState(false);
-  const usable = useMemo(() => emails.filter(Boolean), [emails]);
-
-  if (usable.length === 0) return null;
-
-  return (
-    <button
-      onClick={async () => {
-        await navigator.clipboard.writeText(usable.join(', '));
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-raised"
-    >
-      {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-      {copied ? 'Copied' : `Copy ${usable.length} ${label}`}
-    </button>
-  );
-}
 
 export default function UsersPage() {
   const { data } = useAnalytics();
@@ -209,7 +189,7 @@ export default function UsersPage() {
       <Panel
         title={`Signed up and never did anything (${num(u.ghosts.count)})`}
         subtitle="No kundali, no chat, no report, no order. The clearest re-activation list you have."
-        action={<CopyEmails emails={u.ghosts.list.map((g) => g.email ?? '')} label="emails" />}
+        action={<CopyEmails emails={u.ghosts.list.map((g) => g.email)} />}
         bare
       >
         {u.ghosts.list.length === 0 ? (
@@ -218,6 +198,7 @@ export default function UsersPage() {
           <>
             <Table
               head={[
+                { label: 'Name' },
                 { label: 'Email' },
                 { label: 'Signed up' },
                 { label: 'Days ago', align: 'right' },
@@ -225,7 +206,8 @@ export default function UsersPage() {
             >
               {u.ghosts.list.map((g) => (
                 <tr key={g.user_id}>
-                  <Td>{g.email ?? <span className="text-faint">{g.user_id.slice(0, 8)}</span>}</Td>
+                  <Td>{personName(g)}</Td>
+                  <Td muted>{g.email ?? <span className="text-faint">{g.user_id.slice(0, 8)}</span>}</Td>
                   <Td muted>{fmt(g.created_at)}</Td>
                   <Td align="right" muted>{g.days_since}</Td>
                 </tr>
@@ -243,7 +225,7 @@ export default function UsersPage() {
       <Panel
         title={`Came once and never came back (${num(u.never_returned.count)})`}
         subtitle="Active on exactly one calendar day, ever. They tried it and something did not land."
-        action={<CopyEmails emails={u.never_returned.list.map((g) => g.email ?? '')} label="emails" />}
+        action={<CopyEmails emails={u.never_returned.list.map((g) => g.email)} />}
         bare
       >
         {u.never_returned.list.length === 0 ? (
@@ -252,6 +234,7 @@ export default function UsersPage() {
           <>
             <Table
               head={[
+                { label: 'Name' },
                 { label: 'Email' },
                 { label: 'Signed up' },
                 { label: 'Last sign-in' },
@@ -259,7 +242,8 @@ export default function UsersPage() {
             >
               {u.never_returned.list.map((g) => (
                 <tr key={g.user_id}>
-                  <Td>{g.email ?? <span className="text-faint">{g.user_id.slice(0, 8)}</span>}</Td>
+                  <Td>{personName(g)}</Td>
+                  <Td muted>{g.email ?? <span className="text-faint">{g.user_id.slice(0, 8)}</span>}</Td>
                   <Td muted>{fmt(g.created_at)}</Td>
                   <Td muted>{fmt(g.last_sign_in_at)}</Td>
                 </tr>
@@ -285,6 +269,7 @@ export default function UsersPage() {
         ) : (
           <Table
             head={[
+              { label: 'Name' },
               { label: 'Email' },
               { label: 'Plan' },
               { label: '' },
@@ -293,7 +278,8 @@ export default function UsersPage() {
           >
             {u.logged_in_today.map((l) => (
               <tr key={l.user_id}>
-                <Td>{l.email ?? <span className="text-faint">{l.user_id.slice(0, 8)}</span>}</Td>
+                <Td>{personName(l)}</Td>
+                <Td muted>{l.email ?? <span className="text-faint">{l.user_id.slice(0, 8)}</span>}</Td>
                 <Td>
                   <Pill className={PLAN_COLORS[l.plan ?? 'basic'] ?? PLAN_COLORS.basic}>
                     {l.plan ?? 'basic'}

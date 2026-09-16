@@ -12,9 +12,16 @@ gated by `app_role` (`staff` / `admin` / `super_admin`).
 The app is a sidebar shell: a fixed rail on desktop, a hamburger drawer on a
 phone. Every section is its own route, so it can be linked and bookmarked.
 
+The four "today" tiles on the Overview are buttons. Each one opens a
+full-screen list of the **people** it is counting, by name - who is live right
+now, who was active, who signed up, who signed in - and every one of those
+lists is already in the browser, so opening it costs no request. See
+ANALYTICS.md for where the names come from.
+
 | Route | What it answers | Access |
 | --- | --- | --- |
-| `/` | Overview - the headline numbers, the activity trend, and what needs attention right now | `staff` and above |
+| `/` | Overview - the headline numbers, who is on the app right now, the activity trend, and what needs attention | `staff` and above |
+| `/journey` | Signed up → made a horoscope → asked → kept asking → came back, with the people who stopped at each step | `staff` and above |
 | `/engagement` | How much is being asked, by whom, and what readers talk about | `staff` and above |
 | `/users` | Signups, retention cohorts, who came back, and the email lists of accounts that never started | `staff` and above |
 | `/revenue` | The whole checkout funnel: paid, failed, abandoned, by item, by customer | `staff` and above |
