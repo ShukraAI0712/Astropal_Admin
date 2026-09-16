@@ -5,11 +5,12 @@ import Link from 'next/link';
 import { AlertTriangle, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { useAnalytics } from '@/lib/analytics-context';
 import {
-  RANGE_LABELS, delta, money, num, sliceSeries, type Range,
+  RANGE_LABELS, delta, funnelSteps, money, num, sliceSeries, type Range,
 } from '@/lib/analytics';
 import { Caveat, Panel, StatCard } from '@/components/ui';
+import { LiveStrip, PeopleSheet, type SheetKind } from '@/components/people';
 import {
-  RangeTabs, SERIES, Sparkline, StackedBar, TimeSeries,
+  Funnel, RangeTabs, SERIES, Sparkline, StackedBar, TimeSeries,
 } from '@/components/charts';
 
 /**
@@ -25,6 +26,9 @@ import {
 export default function OverviewPage() {
   const { data } = useAnalytics();
   const [range, setRange] = useState<Range>('30d');
+  // Which people sheet is open, or null. One piece of state rather than four
+  // booleans: the sheets are mutually exclusive by construction.
+  const [sheet, setSheet] = useState<SheetKind | null>(null);
 
   if (!data) return null;
 
@@ -99,6 +103,10 @@ export default function OverviewPage() {
         </p>
       </header>
 
+      {/* Who is on the app at this second. Above the hero because it is the
+          only thing here that is true *now* rather than true today. */}
+      <LiveStrip data={data} onOpen={() => setSheet('live')} />
+
       {/* The hero: the one number the dashboard leads with. Active accounts
           rather than signups, because a signup is a cost until it comes back. */}
       <section className="rounded-xl border border-line bg-surface p-6">
@@ -130,6 +138,9 @@ export default function OverviewPage() {
         </p>
       </section>
 
+      {/* The four "today" tiles open the list of people they are counting.
+          The four below them are money and throughput, which are not lists of
+          anyone, so they stay plain - see StatCard on why. */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="Questions today"
@@ -138,6 +149,8 @@ export default function OverviewPage() {
           deltaLabel="vs yesterday"
           sub={`${num(k.askers.today)} people`}
           trend={<Sparkline values={spark.map((p) => p.questions)} color={SERIES[0]} />}
+          onOpen={() => setSheet('questions')}
+          openLabel="See who asked something today"
         />
         <StatCard
           label="Active today"
@@ -146,6 +159,8 @@ export default function OverviewPage() {
           deltaLabel="vs yesterday"
           sub={`${data.users.today_split.returning} returning`}
           trend={<Sparkline values={spark.map((p) => p.active)} color={SERIES[2]} />}
+          onOpen={() => setSheet('active')}
+          openLabel="See who was active today"
         />
         <StatCard
           label="New signups today"
@@ -154,6 +169,8 @@ export default function OverviewPage() {
           deltaLabel="vs yesterday"
           sub={`${num(k.new_users.d30)} in 30 days`}
           trend={<Sparkline values={spark.map((p) => p.new_users)} color={SERIES[1]} />}
+          onOpen={() => setSheet('new')}
+          openLabel="See who signed up today"
         />
         <StatCard
           label="Sign-ins today"
@@ -162,6 +179,8 @@ export default function OverviewPage() {
           deltaLabel="vs yesterday"
           sub={`${num(data.users.logged_in_today.length)} accounts`}
           trend={<Sparkline values={spark.map((p) => p.logins)} color={SERIES[6]} />}
+          onOpen={() => setSheet('signed_in')}
+          openLabel="See who signed in today"
         />
         <StatCard
           label="Revenue, 30 days"
@@ -271,6 +290,24 @@ export default function OverviewPage() {
           </div>
         </Panel>
       </div>
+
+      <Panel
+        title="The journey, all time"
+        subtitle="Of every account that ever signed up, how far each one got."
+        action={
+          <Link
+            href="/journey"
+            className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-raised"
+          >
+            Open the funnel
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        }
+      >
+        <Funnel steps={funnelSteps(data.journey.windows.all)} />
+      </Panel>
+
+      <PeopleSheet kind={sheet} data={data} onClose={() => setSheet(null)} />
     </div>
   );
 }

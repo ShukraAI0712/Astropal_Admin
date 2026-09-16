@@ -414,6 +414,111 @@ export function StackedBar({
 }
 
 // ------------------------------------------------------------------ //
+//  Funnel                                                             //
+// ------------------------------------------------------------------ //
+
+export interface FunnelStep {
+  key: string;
+  label: string;
+  value: number;
+  /** What this step actually counts, in one line. */
+  hint?: string;
+}
+
+/**
+ * A journey funnel: one bar per step, every bar measured against the first.
+ *
+ * Deliberately NOT the tapering trapezoid that funnel charts usually are. A
+ * trapezoid encodes each step as an area, and area is the thing people read
+ * least accurately - a step that kept 40% of the previous one looks like it
+ * kept about two thirds. These are bars against a shared left baseline, which
+ * is the comparison the eye is actually good at.
+ *
+ * Two numbers ride on every step, and they answer different questions:
+ * the share of the ORIGINAL cohort (how big is this group), and the share of
+ * the PREVIOUS step (how well did this step convert). A funnel that shows only
+ * the first hides the step that is leaking; one that shows only the second
+ * hides how little is left by the end.
+ */
+export function Funnel({
+  steps,
+  color = 'var(--series-1)',
+}: {
+  steps: FunnelStep[];
+  color?: string;
+}) {
+  const top = steps[0]?.value ?? 0;
+
+  if (!top) {
+    return <p className="py-6 text-center text-sm text-faint">Nobody in this cohort yet.</p>;
+  }
+
+  return (
+    <ol className="space-y-1">
+      {steps.map((s, i) => {
+        const prev = i === 0 ? null : steps[i - 1].value;
+        const ofTop = Math.round((s.value / top) * 100);
+        const ofPrev = prev ? Math.round((s.value / prev) * 100) : null;
+        const lost = prev === null ? 0 : prev - s.value;
+
+        return (
+          <li key={s.key}>
+            {/* The drop sits BETWEEN two bars rather than on one of them,
+                because it is a fact about the gap and not about either step. */}
+            {prev !== null && (
+              <div className="flex items-center gap-2 py-1 pl-1">
+                <span aria-hidden className="h-4 w-px" style={{ background: 'var(--line)' }} />
+                <span className="text-[11px] text-faint">
+                  {lost > 0 ? (
+                    <>
+                      <span style={{ color: 'var(--status-serious)' }}>
+                        −{lost.toLocaleString('en-IN')}
+                      </span>{' '}
+                      dropped here
+                    </>
+                  ) : (
+                    'nobody lost here'
+                  )}
+                </span>
+              </div>
+            )}
+
+            {/* The label gets the line and the count, and the two percentages
+                go underneath. Sharing one line truncated the step name on a
+                phone - "2. Made a horos..." - and the name is the part you
+                cannot infer from the others. */}
+            <div className="mb-1 flex items-baseline justify-between gap-3">
+              <span className="min-w-0 text-sm text-ink">
+                {i + 1}. {s.label}
+              </span>
+              <span className="shrink-0 text-sm font-medium text-ink tabular-nums">
+                {s.value.toLocaleString('en-IN')}
+              </span>
+            </div>
+
+            <div className="h-3 w-full overflow-hidden rounded-full bg-raised">
+              <div
+                className="h-full rounded-r-[6px] transition-[width] duration-500"
+                style={{
+                  width: `${Math.max(ofTop, s.value > 0 ? 1.5 : 0)}%`,
+                  background: color,
+                }}
+              />
+            </div>
+
+            <p className="mt-1 text-[11px] text-faint">
+              {ofTop}% of everyone
+              {ofPrev !== null && ` · ${ofPrev}% of the step above`}
+              {s.hint && ` · ${s.hint}`}
+            </p>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+// ------------------------------------------------------------------ //
 //  Sparkline                                                          //
 // ------------------------------------------------------------------ //
 

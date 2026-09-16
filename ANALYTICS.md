@@ -25,10 +25,17 @@ That is the central design decision and everything else follows from it:
 | `app/api/analytics/route.ts` | Verifies the JWT, checks `app_role`, caches the document for 60s in module scope | 0 queries on a cache hit |
 | `lib/analytics-context.tsx` | Holds the document above the router outlet | 0 requests when you change screen |
 
-**Switching between Overview, Engagement, Users, Revenue, Reports and Support
-costs nothing.** They are all reading the same object. Only a page reload or
-the Refresh button goes back to the network, and only Refresh asks the server
-to skip its own cache.
+**Switching between Overview, Journey, Engagement, Users, Revenue, Reports and
+Support costs nothing.** They are all reading the same object. Only a page
+reload or the Refresh button goes back to the network, and only Refresh asks
+the server to skip its own cache.
+
+That rule extends to the people sheets. Tapping "Active today" to see the
+sixteen names behind the number opens a list that is **already in the
+browser** - the lists are built in `admin_analytics()` next to the counts, not
+fetched when the tile is tapped. The alternative would be a second endpoint
+whose definition of "active today" would eventually drift from the tile's, and
+a spinner on every tap.
 
 The function is bounded so it does not get slower as the product ages: every
 time-bucketed figure looks back 400 days, the daily series is 90 points and the
@@ -118,6 +125,29 @@ This is also why "came once and never came back" counts **distinct active days,
 not session rows**. The session-row version called 374 of 444 accounts
 one-and-done, the most loyal ones included.
 
+### Live, and names
+
+**Live** is a visible signal within the last **15 minutes**, and the signal
+that matters most is `auth.sessions.refreshed_at` - a session still being used.
+Without it "live" would mean "typing", and most people on the app at any moment
+are reading rather than typing. Fifteen minutes rather than five because a
+session refresh is periodic: a tighter window reports people as gone while they
+are still there.
+
+The number is as fresh as the document, which the route caches for 60 seconds.
+Refresh is the button that makes it exact.
+
+**Names** are resolved in SQL, in this order, and the order is deliberate:
+
+| Source | Why it is where it is |
+| --- | --- |
+| `auth.users.raw_user_meta_data->>'full_name'` | The account holder, from the identity provider. Populated for every account in the live data. This is who a "who signed in" list is about. |
+| The name on their primary kundali | A **fallback**, not the first choice. A kundali is often drawn for somebody else - in the live data the account called Ajay has a chart for Pratibha on it, and greeting Ajay as Pratibha is worse than showing an email. |
+| The email's local part, title-cased | So no row is ever nameless. |
+
+A `full_name` that is itself an email address is discarded rather than split.
+"First name: Shukra.ai.tech" is not a name.
+
 ### Questions
 
 A question is one message a reader sent in chat (`messages.role = 'user'`).
@@ -160,6 +190,50 @@ abandonments are visible rather than inferred:
   write, so anything still open an hour later was abandoned at the Razorpay
   modal. That is a pricing or trust problem at checkout, not a gateway failure,
   and the two need completely different fixes.
+
+### The journey funnel
+
+Five steps, over **one cohort of accounts selected by when they signed up**:
+
+```
+created an account -> made a horoscope -> asked a question
+                   -> asked more than 5 -> came back after that
+```
+
+Two things make this a funnel rather than five unrelated counts.
+
+**The steps are nested in the live data.** Every account that has asked a
+question has a horoscope, because the product cannot open a chat without one.
+That is verified rather than assumed: `asked_without_kundali` is reported
+alongside every window, and the Journey screen prints a warning instead of a
+funnel on the day it stops being zero.
+
+**Every step is measured over the same people.** Counting "signups this month"
+against "questions this month" is the classic way to draw a funnel that
+describes two different populations.
+
+The cost of the cohort rule is that **short windows understate every step after
+the first** - an account that signed up yesterday has not had time to ask six
+questions and come back. That is why 30 / 90 / 365 days sit next to all time
+rather than instead of it, and why the screen says so above the chart.
+
+**"Came back after that"** is the one definition worth reading twice: active on
+a calendar day *strictly later* than the day the account asked its sixth
+question. Measured from their last question instead, returning would be
+impossible by construction.
+
+Payment is deliberately **not** a sixth step. One paid account out of 457 is a
+pricing story rather than a leak in activation, and putting it on the end would
+make every other step look like a rounding error. It is reported as a footnote
+under the funnel and properly on the Revenue screen.
+
+#### What the funnel says today
+
+The median account reaches its horoscope in **1.6 minutes**, asks its first
+question at **3.6 minutes** and its sixth at **13.2 minutes**. Nothing here is
+a slow funnel worked through over days - it all happens in the first sitting,
+which is why the accounts that leave that sitting without asking so rarely come
+back to start.
 
 ### Deltas
 
@@ -226,7 +300,12 @@ what sold and what failed, but not what brought the buyer.
 
 1. Add it to `public.admin_analytics()` in `sql/001_admin_analytics.sql`.
    Aggregate it once and join it onto the existing working sets (`_q`, `_act`,
-   `_mem`, `_accounts`) rather than adding a new scan.
+   `_mem`, `_accounts`, `_seen`, `_journey`) rather than adding a new scan.
+   Anything per-account belongs on `_journey`, which already holds one row per
+   account with every step on it.
+   **If you add a temp table, add it to the `drop table if exists` list in
+   `sql/002_admin_dashboard_gate.sql`** - otherwise calling the function twice
+   in one transaction fails on a name that is not the one you changed.
 2. Apply the file. It is idempotent - `CREATE OR REPLACE` and
    `CREATE INDEX IF NOT EXISTS` throughout.
 3. Add the field to the `Analytics` interface in `lib/analytics.ts`.
