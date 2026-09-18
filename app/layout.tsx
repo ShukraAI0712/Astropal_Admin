@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
@@ -20,7 +21,12 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Next.js nonces its own script tags, but not one the app writes itself.
+  // `proxy.ts` mints the nonce and puts it here; without it the theme script
+  // below is exactly the kind of inline script the policy exists to refuse.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html
       lang="en"
@@ -29,7 +35,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <head>
         {/* Applies the stored theme before first paint so there is no flash. */}
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-full flex flex-col bg-canvas text-ink">
         <ThemeProvider>

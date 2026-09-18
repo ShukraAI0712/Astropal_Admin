@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 /**
@@ -74,20 +75,44 @@ export function userClient(token: string): SupabaseClient {
 }
 
 /**
- * The `sub` claim of a JWT, without verifying it.
+ * A stable, non-reversible handle for one exact bearer token.
  *
- * Used ONLY as a cache key, so that two admins do not read each other's
- * cached role. Nothing is authorised on the strength of this - Postgres
- * verifies the signature and `admin_dashboard()` decides what the caller may
- * see, so a forged token buys a wrong cache bucket and nothing else.
+ * This replaces an earlier `unverifiedSubject()` that keyed the role cache on
+ * the `sub` claim of an UNVERIFIED JWT. That was a hole: `sub` is attacker
+ * supplied, so anyone who learned a staff member's user id could mint an
+ * unsigned token carrying it and be handed that staff member's cached role -
+ * and with it a cached analytics document - without a signature ever being
+ * checked. See the header of app/api/analytics/route.ts.
+ *
+ * A digest of the whole token does not have that problem. A cache entry can
+ * only be reached by presenting, byte for byte, the same token that Postgres
+ * already verified and authorised; change one character and the digest lands
+ * on nothing and the request goes back to the database. The credential is
+ * possession of the token, which is what it was all along.
+ *
+ * SHA-256 rather than the token itself so a heap dump or a log line of the
+ * cache does not hand over live sessions.
  */
-export function unverifiedSubject(token: string): string | null {
+export function tokenFingerprint(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+/**
+ * The `exp` claim, in milliseconds, without verifying the signature.
+ *
+ * Used only to REJECT early: an expired token is refused before any cache is
+ * consulted, so a cached role can never outlive the session it was granted
+ * for. Nothing is ever admitted on the strength of this - a forged `exp` in
+ * the future buys the caller nothing, because the fingerprint above still has
+ * to match an entry a real verification created.
+ */
+export function unverifiedExpiry(token: string): number | null {
   try {
     const payload = token.split('.')[1];
     if (!payload) return null;
     const json = Buffer.from(payload.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString();
-    const sub = JSON.parse(json)?.sub;
-    return typeof sub === 'string' ? sub : null;
+    const exp = JSON.parse(json)?.exp;
+    return typeof exp === 'number' && Number.isFinite(exp) ? exp * 1000 : null;
   } catch {
     return null;
   }

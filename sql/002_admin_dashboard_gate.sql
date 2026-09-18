@@ -58,9 +58,23 @@ declare
   v_role    text;
 begin
   if v_claims is null or v_claims = '' then
-    -- A direct database connection: psql, the SQL editor, a migration. It can
-    -- already read every table this function touches, so gating it would add
-    -- nothing but a confusing error in the one place people debug from.
+    -- No JWT at all. That is meant to be a direct database connection: psql,
+    -- the SQL editor, a migration. Such a session can already read every
+    -- table this function touches, so gating it would add nothing but a
+    -- confusing error in the one place people debug from.
+    --
+    -- But "no claims" was, on its own, a fail-open default: any future path
+    -- that reaches this function without PostgREST having set the claim -
+    -- a trigger, pg_cron, a pooler that drops GUCs, a role that is granted
+    -- EXECUTE later - was handed super_admin and the whole document with it.
+    -- So the DBA case is now asserted rather than assumed. A request that
+    -- arrived through PostgREST always runs as one of these three roles, and
+    -- a PostgREST request with no claims is a bug, not a database admin.
+    if session_user in ('anon', 'authenticated', 'authenticator', 'service_role') then
+      raise exception 'admin_dashboard: not authenticated'
+        using errcode = '42501';
+    end if;
+
     v_role := 'super_admin';
 
   elsif v_jwt = 'service_role' then
