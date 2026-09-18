@@ -67,10 +67,19 @@ begin
     -- that reaches this function without PostgREST having set the claim -
     -- a trigger, pg_cron, a pooler that drops GUCs, a role that is granted
     -- EXECUTE later - was handed super_admin and the whole document with it.
-    -- So the DBA case is now asserted rather than assumed. A request that
-    -- arrived through PostgREST always runs as one of these three roles, and
-    -- a PostgREST request with no claims is a bug, not a database admin.
-    if session_user in ('anon', 'authenticated', 'authenticator', 'service_role') then
+    --
+    -- So the claim the comment above makes is now ASSERTED rather than
+    -- assumed, and asserted positively: the only sessions excused the role
+    -- check are the ones the excuse is actually true of - a superuser, or a
+    -- member of `postgres`. Those can already read every table this function
+    -- touches, so handing them the document adds no privilege they did not
+    -- have. Everything else fails closed, including any API role invented
+    -- later, because it has to earn its way in rather than merely not be on
+    -- a list. PostgREST reaches this as `authenticator`, which is neither.
+    if not (
+         coalesce((select r.rolsuper from pg_roles r where r.rolname = session_user), false)
+      or pg_has_role(session_user, 'postgres', 'MEMBER')
+    ) then
       raise exception 'admin_dashboard: not authenticated'
         using errcode = '42501';
     end if;

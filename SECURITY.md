@@ -136,14 +136,34 @@ future path that reaches this function without PostgREST having set the GUC
 — a trigger, `pg_cron`, a pooler that drops settings, a role granted EXECUTE
 later — is handed `super_admin` and the entire document.
 
-**Fixed**: the DBA case is asserted rather than assumed. A request that came
-through PostgREST runs with `session_user` of `authenticator` (`SET LOCAL
-ROLE` does not change `session_user`), and one arriving from there with no
-claims is a bug, not a database administrator — so it now raises `42501`.
-Direct connections as `postgres` are unaffected.
+**Fixed**: the excuse is now asserted, and asserted *positively*. Rather than
+blocklisting role names, the no-claims branch admits only a session the
+excuse is actually true of — a superuser, or a member of `postgres` — since
+those can already read every table the function touches. Anything else fails
+closed, including any API role invented later, because it has to earn its way
+in rather than merely not be on a list.
 
-> Re-run `sql/002_admin_dashboard_gate.sql` against the database; the file is
-> `create or replace` and safe to re-run.
+Verified against the production database rather than assumed:
+
+| `session_user` | excused from the role check |
+| --- | --- |
+| `postgres`, `supabase_admin` (psql, SQL editor, migrations) | yes |
+| `authenticator` (what PostgREST connects as), `anon`, `authenticated`, `service_role` | **no** |
+
+`SET LOCAL ROLE`, which is how PostgREST assumes `authenticated`, does not
+change `session_user`, so a web request cannot present itself as a DBA.
+
+**This is applied.** Migration `admin_dashboard_gate_no_fail_open` is live on
+project `qlxejaxzpotozbixccvu`. Behaviour after the change, tested against the
+real function:
+
+| case | result |
+| --- | --- |
+| customer JWT (`app_role = user`) | refused, `42501` |
+| JWT with no subject | refused, `42501` |
+| `anon` JWT | refused, `42501` |
+| the real `super_admin` JWT | allowed, full 15-key document |
+| direct connection, no claims | allowed as `super_admin` |
 
 ---
 
@@ -177,3 +197,44 @@ Direct connections as `postgres` are unaffected.
   not use `caller_role` to hide create/edit/delete; enforcement lives in the
   FastAPI backend's own admin checks. Worth adding as defence in depth, but
   the authority is correctly server-side and is not in this repository.
+
+---
+
+## Supabase's own linter, run after the fix
+
+`get_advisors(security)` on `qlxejaxzpotozbixccvu` returns three notices. None
+is new, and none is introduced by this work:
+
+- **WARN — `admin_dashboard` is executable by `authenticated` as a SECURITY
+  DEFINER function.** This is the forwarded-token posture, named exactly as
+  `sql/002` describes it. Supabase's linter independently flags what that file
+  already wrote down. It closes by setting `SUPABASE_SERVICE_ROLE_KEY` and
+  revoking EXECUTE — in that order, see below.
+
+- **INFO — `public.chat_sessions` and `public.guest_kundalis` have RLS enabled
+  with no policies.** RLS with no policy denies everything to `anon` and
+  `authenticated`, so this is fail-closed, not an exposure. Left alone
+  deliberately: these are AskDisha product tables, not this app's, and the
+  "fix" for this lint is to *add* policies, which would widen access on a
+  production table. Worth a look from whoever owns those tables, to confirm
+  deny-all is the intent.
+
+- **WARN — leaked-password protection disabled.** Concerns the consumer
+  product's password auth; this admin app is Google OAuth only. It is an Auth
+  settings toggle for the whole project, so it is the product's call, not this
+  repository's.
+
+### The one remaining change, and why it is not done here
+
+Closing the WARN above is two steps that must happen **in this order**:
+
+1. Set `SUPABASE_SERVICE_ROLE_KEY` in the `astropal-admin` Vercel project and
+   redeploy. The route handler switches posture on its own once the variable
+   exists — no code change.
+2. Then, and only then:
+   `revoke execute on function public.admin_dashboard(text) from authenticated;`
+
+Doing step 2 first takes the dashboard down, because the forwarded-token path
+is what production is serving from today. I stopped short of both: the
+service-role key is a secret I have no read access to, and revoking without it
+is an outage. Everything else in this document is applied and verified.
